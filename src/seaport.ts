@@ -313,6 +313,54 @@ export class Seaport extends EventEmitter {
         return this.createOrder(offer, consideration, expirationTime, listingTime, true)
     }
 
+    public async createAllSellOrder(assets: SellOrderParams[]): Promise<OrderWithCounter> {
+        const offers: OfferItem[] = []
+        const considerations: any = []
+
+        // @ts-ignore
+        for (const {
+            asset,
+            quantity = 1,
+            paymentToken = NullToken,
+            startAmount,
+        }: BuyOrderParams of assets) {
+            const assetAmount = quantity.toString()
+            offers.push({
+                itemType: asset.schemaName.toLowerCase() == "erc721" ? ItemType.ERC721 : ItemType.ERC1155,
+                token: asset.tokenAddress,
+                identifierOrCriteria: asset?.tokenId?.toString() || "1",
+                startAmount: assetAmount,
+                endAmount: assetAmount
+            })
+
+            const recipients: { address: string, points: number }[] = [{
+                address: this.protocolFeeAddress,
+                points: this.protocolFeePoints
+            }]
+
+            const {collection} = asset
+            if (collection && collection.royaltyFeePoints && collection.royaltyFeeAddress) {
+                const {royaltyFeeAddress, royaltyFeePoints} = collection
+                recipients.push({
+                    address: royaltyFeeAddress,
+                    points: royaltyFeePoints
+                })
+            }
+            const payPoints = recipients.map(val => Number(val.points)).reduce((cur, next) => cur + next)
+
+            recipients.unshift({
+                address: this.walletInfo.address,
+                points: ONE_HUNDRED_PERCENT_BP - payPoints
+            })
+            const tokeneAmount = ethers.utils.parseUnits(startAmount.toString(), paymentToken.decimals || 18)
+            const {fees} = computeFees(recipients, tokeneAmount, paymentToken.address)
+
+            considerations.push(fees)
+        }
+
+        return this.createOrder(offers, considerations, 0)
+    }
+
     public async createSellOrder({
                                      asset,
                                      quantity = 1,

@@ -66,6 +66,10 @@ export class SeaportSDK extends EventEmitter implements ExchangetAgent {
         return this.contracts.createSellOrder(params)
     }
 
+    async createAllSellOrder(params: SellOrderParams[]): Promise<OrderWithCounter> {
+        return this.contracts.createAllSellOrder(params)
+    }
+
     async adjustOrder(params: AdjustOrderParams) {
       return this.contracts.adjustOrder(params)
     }
